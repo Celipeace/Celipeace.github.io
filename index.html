@@ -3,332 +3,329 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEURAL_ENGINE // 大模型感知协议</title>
+    <title>大模型是如何工作的？</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@300;500&family=Noto+Sans+SC:wght@300;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        :root {
-            --cyan: #00f2ff;
-            --magenta: #ff0055;
-            --deep-bg: #05060a;
-            --panel-bg: rgba(7, 10, 20, 0.85);
-        }
-
         body {
-            background-color: var(--deep-bg);
-            color: #b0c4de;
             font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc; /* 柔和的石板白背景 */
+            color: #1e293b;
             overflow-x: hidden;
-            cursor: none; /* 隐藏原生光标，使用自定义 HUD */
         }
 
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-        .font-cyber { font-family: 'Orbitron', sans-serif; }
-
-        /* 自定义光标 HUD */
-        #custom-cursor {
+        /* 柔和的背景光晕 */
+        .bg-glow {
             position: fixed;
-            pointer-events: none;
-            z-index: 10000;
-            mix-blend-mode: screen;
-        }
-
-        .cursor-ring {
-            width: 40px;
-            height: 40px;
-            border: 1px solid var(--cyan);
+            top: -20%; left: -10%;
+            width: 70vw; height: 70vw;
+            background: radial-gradient(circle, rgba(147,197,253,0.3) 0%, rgba(248,250,252,0) 70%);
             border-radius: 50%;
-            position: absolute;
-            transform: translate(-50%, -50%);
-            transition: width 0.3s, height 0.3s;
+            z-index: -1;
+            pointer-events: none;
         }
-
-        .cursor-dot {
-            width: 4px;
-            height: 4px;
-            background: var(--magenta);
-            position: absolute;
-            transform: translate(-50%, -50%);
-        }
-
-        .cursor-hud {
-            position: absolute;
-            left: 30px;
-            top: -20px;
-            font-family: 'JetBrains Mono';
-            font-size: 9px;
-            color: var(--cyan);
-            white-space: nowrap;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 4px 8px;
-            border-left: 2px solid var(--magenta);
-        }
-
-        /* 深度切角面板 */
-        .cyber-panel {
-            background: var(--panel-bg);
-            border: 1px solid rgba(0, 242, 255, 0.15);
-            clip-path: polygon(0 15px, 15px 0, 100% 0, 100% calc(100% - 15px), calc(100% - 15px) 100%, 0 100%);
-            backdrop-filter: blur(20px);
-            position: relative;
-        }
-
-        .cyber-panel::after {
-            content: "";
-            position: absolute;
-            bottom: 0; right: 0;
-            width: 40px; height: 40px;
-            background: linear-gradient(135deg, transparent 50%, var(--cyan) 50%);
-            opacity: 0.1;
-        }
-
-        /* 背景流光 */
-        .bg-grid {
-            background-image: 
-                radial-gradient(circle at 2px 2px, rgba(0, 242, 255, 0.05) 1px, transparent 0);
-            background-size: 40px 40px;
+        .bg-glow-2 {
             position: fixed;
-            inset: 0;
-            z-index: -2;
-        }
-
-        #interaction-canvas {
-            position: fixed;
-            inset: 0;
+            bottom: -20%; right: -10%;
+            width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(196,181,253,0.3) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
             z-index: -1;
             pointer-events: none;
         }
 
-        .glow-text {
-            text-shadow: 0 0 15px rgba(0, 242, 255, 0.6);
+        /* 卡片悬停效果 */
+        .nav-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .nav-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.01);
+            border-color: #cbd5e1;
         }
 
-        @keyframes scanline {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
+        /* Token 胶囊动画 */
+        .token-pill {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: scale(0.8);
         }
-        .scanline {
-            position: absolute;
-            width: 100%; height: 2px;
-            background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-            opacity: 0.1;
-            animation: scanline 10s linear infinite;
+        @keyframes popIn {
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* 拨片开关动画 */
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #6366f1;
+        }
+        .toggle-checkbox:checked + .toggle-label {
+            background-color: #6366f1;
         }
     </style>
 </head>
-<body class="selection:bg-magenta/40">
+<body class="antialiased selection:bg-blue-200 selection:text-blue-900">
 
-    <!-- 自定义 HUD 光标 -->
-    <div id="custom-cursor">
-        <div class="cursor-ring" id="c-ring"></div>
-        <div class="cursor-dot"></div>
-        <div class="cursor-hud" id="c-hud">
-            LATENT_COORD: <span id="val-x">0.000</span>, <span id="val-y">0.000</span><br>
-            ATTENTION_FOCUS: <span id="val-f">0%</span>
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <!-- 导航栏 -->
+    <header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                <i data-lucide="sparkles" class="w-5 h-5 text-blue-500"></i>
+                <span>大模型漫游指南</span>
+            </div>
+            
+            <!-- 认知拨片 (通俗 vs 硬核) -->
+            <div class="flex items-center gap-3 text-sm font-medium">
+                <span id="label-intuition" class="text-blue-600 transition-colors">通俗比喻</span>
+                
+                <div class="relative inline-block w-12 mr-2 align-middle select-none transition duration-200 ease-in">
+                    <input type="checkbox" name="toggle" id="toggle-btn" class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 border-slate-300 appearance-none cursor-pointer transition-all duration-300 z-10 top-0 left-0 checked:left-6 checked:border-indigo-500"/>
+                    <label for="toggle-btn" class="toggle-label block overflow-hidden h-6 rounded-full bg-slate-300 cursor-pointer transition-colors duration-300"></label>
+                </div>
+
+                <span id="label-geek" class="text-slate-400 transition-colors">硬核原理</span>
+            </div>
         </div>
-    </div>
-
-    <div class="bg-grid"></div>
-    <canvas id="interaction-canvas"></canvas>
-
-    <!-- 顶部协议栏 -->
-    <header class="fixed top-0 w-full z-50 px-8 py-4 flex justify-between items-center border-b border-white/5 bg-black/20 backdrop-blur-xl">
-        <div class="flex items-center space-x-4">
-            <div class="text-xs font-cyber tracking-widest text-cyan-400">NEURAL_ENGINE // VISUAL_PROTOCOL_V3</div>
-        </div>
-        <div class="font-mono text-[9px] text-gray-500">SYSTEM_UPTIME: 99.99% // AUTH_STATUS: GRANTED</div>
     </header>
 
-    <main class="relative">
-        <!-- Hero Section -->
-        <section class="min-h-screen flex flex-col justify-center items-center text-center px-4">
-            <div class="scanline"></div>
-            <div class="mb-6 opacity-50 font-mono text-xs tracking-[0.5em] text-magenta">UNDERSTANDING THE SILICON MIND</div>
-            <h1 class="text-7xl md:text-9xl font-cyber font-bold tracking-tighter mb-8 leading-none">
-                <span class="text-white">感知</span><br>
-                <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 glow-text">大模型核心</span>
+    <!-- 首屏 Hero Section -->
+    <main class="pt-32 pb-20 px-6 min-h-[70vh] flex flex-col justify-center relative">
+        <div class="max-w-3xl mx-auto w-full text-center">
+            
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-sm font-medium mb-8 border border-blue-100">
+                <i data-lucide="book-open" class="w-4 h-4"></i>
+                零基础看懂 ChatGPT 背后的秘密
+            </div>
+
+            <h1 class="text-4xl md:text-6xl font-black mb-6 tracking-tight text-slate-900">
+                大模型是如何工作的？
             </h1>
-            <p class="max-w-xl text-gray-500 font-light text-sm md:text-base leading-relaxed">
-                每一个交互都是一次权重的重组。移动你的指针，观察神经网络如何通过注意力机制锚定意义。
+            <p class="text-lg md:text-xl text-slate-500 mb-12 font-light leading-relaxed">
+                它不是魔法，也没有自我意识。<br class="hidden md:block">
+                它只是把你的话切碎，然后在海量词汇里玩一场超级<b class="text-slate-800 font-medium">“文字接龙”</b>。
             </p>
-        </section>
 
-        <!-- Step 1: Tokenization -->
-        <section class="py-24 px-6 max-w-6xl mx-auto">
-            <div class="cyber-panel p-12 group hover:border-cyan-500/40 transition-colors">
-                <div class="grid md:grid-cols-2 gap-16 items-center">
-                    <div>
-                        <div class="flex items-center space-x-2 mb-4">
-                            <span class="w-8 h-[1px] bg-magenta"></span>
-                            <span class="font-mono text-xs text-magenta">PHASE_01</span>
-                        </div>
-                        <h2 class="text-4xl font-cyber font-bold text-white mb-6 uppercase">Tokenization <br><span class="text-cyan-400">词元解构</span></h2>
-                        <p class="text-gray-400 font-light leading-relaxed">
-                            语言的实体被粉碎为离散的数字单位。大模型不识别单词，它识别的是这些碎片在概率海洋中的权重。
-                        </p>
-                    </div>
-                    <div class="relative">
-                        <div class="bg-black/40 border border-white/5 p-8 font-mono text-sm overflow-hidden">
-                            <div class="text-xs text-cyan-900 mb-4 tracking-tighter">HEX_CONVERSION_STREAM</div>
-                            <div class="flex flex-wrap gap-3">
-                                <div class="px-3 py-1 border border-cyan-500/20 text-cyan-500/60 hover:text-cyan-400 hover:border-cyan-400 transition-all cursor-none">0x48 (H)</div>
-                                <div class="px-3 py-1 border border-cyan-500/20 text-cyan-500/60 hover:text-cyan-400 hover:border-cyan-400 transition-all cursor-none">0x65 (e)</div>
-                                <div class="px-3 py-1 border border-cyan-500/20 text-cyan-500/60 hover:text-cyan-400 hover:border-cyan-400 transition-all cursor-none">0x6C (l)</div>
-                                <div class="px-3 py-1 border border-cyan-500/20 text-cyan-500/60 hover:text-cyan-400 hover:border-cyan-400 transition-all cursor-none">0x6C (l)</div>
-                                <div class="px-3 py-1 border border-cyan-500/20 text-cyan-500/60 hover:text-cyan-400 hover:border-cyan-400 transition-all cursor-none">0x6F (o)</div>
-                            </div>
-                        </div>
-                        <div class="absolute -bottom-4 -right-4 w-24 h-24 border-r border-b border-magenta/40"></div>
+            <!-- 互动破冰区：直观展示 Token化 -->
+            <div class="bg-white border border-slate-200 p-2 rounded-2xl shadow-lg relative max-w-2xl mx-auto text-left">
+                <div class="flex items-center px-4 py-3 gap-3">
+                    <i data-lucide="message-square" class="w-5 h-5 text-slate-400"></i>
+                    <input type="text" id="hero-input" placeholder="输入一句中文试试看..." 
+                        class="w-full bg-transparent text-slate-800 text-lg outline-none placeholder-slate-400">
+                </div>
+                
+                <!-- 动态切词展示区 -->
+                <div id="token-display-area" class="px-4 pb-4 pt-2 border-t border-slate-100 hidden">
+                    <p class="text-xs text-slate-400 mb-2">机器眼中的你（被切碎的 Token）：</p>
+                    <div id="token-container" class="flex flex-wrap gap-2">
+                        <!-- JS 动态生成彩色小方块 -->
                     </div>
                 </div>
             </div>
-        </section>
-
-        <!-- Step 2: Embedding -->
-        <section class="py-24 px-6 max-w-6xl mx-auto">
-            <div class="cyber-panel p-12 border-r-4 border-r-magenta/30">
-                <div class="text-center mb-12">
-                    <h2 class="text-3xl font-cyber font-bold text-white mb-2">LATENT_SPACE EXPLORER</h2>
-                    <p class="text-xs text-gray-500 font-mono uppercase tracking-[0.3em]">映射语义的几何距离</p>
-                </div>
-                <div class="h-64 relative bg-black/60 overflow-hidden flex items-center justify-center">
-                    <!-- SVG Vector Field -->
-                    <svg width="100%" height="100%" class="opacity-30">
-                        <defs>
-                            <pattern id="smallGrid" width="20" height="20" patternUnits="userSpaceOnUse">
-                                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,242,255,0.1)" stroke-width="0.5"/>
-                            </pattern>
-                        </defs>
-                        <rect width="100%" height="100%" fill="url(#smallGrid)" />
-                    </svg>
-                    <div class="absolute text-[10px] font-mono text-magenta animate-pulse">
-                        [ SYSTEM: PROJECTING_512_DIMENSIONS ]
-                    </div>
-                </div>
+            
+            <div class="mt-16">
+                <p class="text-sm text-slate-400 mb-4">准备好拆开这个黑盒了吗？</p>
+                <a href="#roadmap" class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-white shadow-md border border-slate-100 text-blue-500 hover:bg-blue-50 hover:-translate-y-1 transition-all">
+                    <i data-lucide="arrow-down" class="w-6 h-6"></i>
+                </a>
             </div>
-        </section>
+
+        </div>
     </main>
 
+    <!-- 导航地图 / 章节列表 -->
+    <section id="roadmap" class="py-20 px-6 relative">
+        <div class="max-w-5xl mx-auto">
+            
+            <div class="mb-12 text-center">
+                <h2 class="text-3xl font-bold text-slate-800 mb-4">探索大模型的四大步骤</h2>
+                <p class="text-slate-500">点击下方卡片，进入独立章节深入学习。</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="cards-container">
+                <!-- 卡片由 JS 渲染 -->
+            </div>
+
+        </div>
+    </section>
+
+    <!-- 底部区 -->
+    <footer class="border-t border-slate-200 bg-white py-12 px-6">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+            <p>© 2024 交互式科普项目 · 大模型漫游指南</p>
+            <div class="flex gap-4 mt-4 md:mt-0">
+                <a href="#" class="hover:text-slate-800 transition-colors">关于作者</a>
+                <a href="#" class="hover:text-slate-800 transition-colors">推荐阅读</a>
+                <a href="#" class="hover:text-slate-800 transition-colors">GitHub</a>
+            </div>
+        </div>
+    </footer>
+
     <script>
-        // --- 1. 高级深度交互画布 (Perception System) ---
-        const canvas = document.getElementById('interaction-canvas');
-        const ctx = canvas.getContext('2d');
-        const cRing = document.getElementById('c-ring');
-        const cHud = document.getElementById('custom-cursor');
-        const valX = document.getElementById('val-x');
-        const valY = document.getElementById('val-y');
-        const valF = document.getElementById('val-f');
+        // 初始化图标
+        lucide.createIcons();
 
-        let width, height;
-        let nodes = [];
-        let mouse = { x: -1000, y: -1000, active: false };
-
-        function init() {
-            resize();
-            // 创建背景“潜空间节点”
-            nodes = [];
-            for (let i = 0; i < 60; i++) {
-                nodes.push({
-                    x: Math.random() * width,
-                    y: Math.random() * height,
-                    baseX: 0, baseY: 0,
-                    size: Math.random() * 2,
-                    vx: (Math.random() - 0.5) * 0.5,
-                    vy: (Math.random() - 0.5) * 0.5,
-                    active: 0
-                });
+        // 认知深度数据 (通俗 vs 硬核)
+        const roadmapData = [
+            {
+                id: 'tokenization',
+                num: '01',
+                title: '切碎语言 (Tokenization)',
+                icon: 'scissors',
+                color: 'blue',
+                intuition: '大模型不认识字。第一步就像切菜，把你的一整句话切成一个个“小词块”（Token），这是它能吞下的最小积木。',
+                geek: '文本序列化过程。使用 BPE（字节对编码）算法将人类字符映射为高维张量的索引字典，是模型理解输入的物理基础。'
+            },
+            {
+                id: 'embedding',
+                num: '02',
+                title: '理解含义 (Embedding)',
+                icon: 'compass',
+                color: 'indigo',
+                intuition: '怎么让机器懂“苹果”是什么？把它变成一串数字坐标。在它的世界里，“苹果”离“香蕉”很近，离“汽车”很远。',
+                geek: '将离散 Token 投射到连续的浮点向量空间。通过高维几何坐标的余弦相似度来捕捉语义关联，并注入位置编码（Positional Encoding）。'
+            },
+            {
+                id: 'attention',
+                num: '03',
+                title: '抓住重点 (Attention)',
+                icon: 'link-2',
+                color: 'violet',
+                intuition: '当你说“苹果发布了新手机”，它怎么知道“苹果”不是水果？它会给句子里的词互相“拉线”，找出词与词之间的关联。',
+                geek: 'Self-Attention 自注意力机制。通过 Query/Key/Value 矩阵运算，计算上下文中词与词之间的相关性权重，实现动态语义聚合。'
+            },
+            {
+                id: 'generation',
+                num: '04',
+                title: '文字接龙 (Generation)',
+                icon: 'play-circle',
+                color: 'fuchsia',
+                intuition: '搞懂了你的意思后，它就开始玩“接龙游戏”。根据前面的话，猜下一个最可能出现的词，一个词一个词往外蹦，直到写完。',
+                geek: 'Causal Language Modeling（因果语言建模）。基于上下文计算下一个 Token 的概率分布 (Logits)，结合 Temperature 采样策略输出结果。'
             }
-            animate();
+        ];
+
+        // 状态管理
+        let isGeekMode = false;
+        
+        const cardsContainer = document.getElementById('cards-container');
+        const toggleBtn = document.getElementById('toggle-btn');
+        const labelIntuition = document.getElementById('label-intuition');
+        const labelGeek = document.getElementById('label-geek');
+
+        // 颜色映射类
+        const colorClasses = {
+            blue: { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-100', hover: 'group-hover:text-blue-600' },
+            indigo: { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', hover: 'group-hover:text-indigo-600' },
+            violet: { bg: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-100', hover: 'group-hover:text-violet-600' },
+            fuchsia: { bg: 'bg-fuchsia-50', text: 'text-fuchsia-600', border: 'border-fuchsia-100', hover: 'group-hover:text-fuchsia-600' },
+        };
+
+        // 渲染卡片
+        function renderCards() {
+            cardsContainer.innerHTML = '';
+            roadmapData.forEach(data => {
+                const desc = isGeekMode ? data.geek : data.intuition;
+                const colors = colorClasses[data.color];
+
+                const cardHTML = `
+                    <a href="#" class="nav-card block bg-white border border-slate-200 rounded-2xl p-8 cursor-pointer group relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 ${colors.bg} rounded-bl-full -z-10 opacity-50 transition-transform group-hover:scale-110"></div>
+                        
+                        <div class="flex justify-between items-start mb-6">
+                            <div class="w-12 h-12 rounded-xl ${colors.bg} ${colors.text} flex items-center justify-center">
+                                <i data-lucide="${data.icon}" class="w-6 h-6"></i>
+                            </div>
+                            <span class="text-slate-300 font-bold text-xl transition-colors ${colors.hover}">STEP ${data.num}</span>
+                        </div>
+                        
+                        <h3 class="text-2xl font-bold mb-4 text-slate-800">${data.title}</h3>
+                        <p class="text-slate-500 leading-relaxed min-h-[70px] transition-opacity duration-300">
+                            ${desc}
+                        </p>
+                        
+                        <div class="mt-8 flex items-center gap-2 text-sm font-medium text-slate-400 ${colors.hover} transition-colors">
+                            <span>进入章节</span>
+                            <i data-lucide="arrow-right" class="w-4 h-4 transition-transform group-hover:translate-x-1"></i>
+                        </div>
+                    </a>
+                `;
+                cardsContainer.innerHTML += cardHTML;
+            });
+            lucide.createIcons();
         }
 
-        function resize() {
-            width = canvas.width = window.innerWidth;
-            height = canvas.height = window.innerHeight;
-        }
-
-        window.addEventListener('resize', resize);
-        window.addEventListener('mousemove', e => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-            mouse.active = true;
-
-            // 更新 HUD 文字
-            valX.innerText = (e.clientX / width).toFixed(3);
-            valY.innerText = (e.clientY / height).toFixed(3);
+        // 切换模式逻辑
+        toggleBtn.addEventListener('change', (e) => {
+            isGeekMode = e.target.checked;
             
-            // 移动自定义光标
-            cHud.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+            if (isGeekMode) {
+                labelIntuition.classList.replace('text-blue-600', 'text-slate-400');
+                labelGeek.classList.replace('text-slate-400', 'text-indigo-600');
+            } else {
+                labelGeek.classList.replace('text-indigo-600', 'text-slate-400');
+                labelIntuition.classList.replace('text-slate-400', 'text-blue-600');
+            }
             
-            // 交互反馈：光标圆环缩放
-            cRing.style.width = '60px';
-            cRing.style.height = '60px';
+            // 为所有卡片段落添加淡出淡入动画
+            const paragraphs = document.querySelectorAll('.nav-card p');
+            paragraphs.forEach(p => p.style.opacity = '0');
             setTimeout(() => {
-                cRing.style.width = '40px';
-                cRing.style.height = '40px';
-            }, 100);
+                renderCards();
+            }, 150);
         });
 
-        function animate() {
-            ctx.clearRect(0, 0, width, height);
+        // 初始渲染卡片（就是这里漏掉了这行调用代码）
+        renderCards();
+
+        // 破冰交互逻辑：真实的中文分词引擎
+        const heroInput = document.getElementById('hero-input');
+        const tokenDisplayArea = document.getElementById('token-display-area');
+        const tokenContainer = document.getElementById('token-container');
+
+        // 使用浏览器原生的 Intl.Segmenter 进行真实的中英文分词
+        function realTokenize(text) {
+            const segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' });
+            const segments = segmenter.segment(text);
+            const tokens = [];
             
-            let focusCount = 0;
-
-            nodes.forEach(node => {
-                // 节点飘动
-                node.x += node.vx;
-                node.y += node.vy;
-
-                // 边界处理
-                if (node.x < 0 || node.x > width) node.vx *= -1;
-                if (node.y < 0 || node.y > height) node.vy *= -1;
-
-                // 计算与鼠标的“感知距离”
-                const dx = mouse.x - node.x;
-                const dy = mouse.y - node.y;
-                const dist = Math.sqrt(dx*dx + dy*dy);
-
-                if (dist < 250) {
-                    focusCount++;
-                    // 绘制“注意力连线” (Attention Lines)
-                    const opacity = (1 - dist / 250) * 0.4;
-                    ctx.strokeStyle = `rgba(0, 242, 255, ${opacity})`;
-                    ctx.lineWidth = 0.5;
-                    ctx.beginPath();
-                    ctx.moveTo(node.x, node.y);
-                    ctx.lineTo(mouse.x, mouse.y);
-                    ctx.stroke();
-
-                    // 绘制节点发光
-                    ctx.fillStyle = `rgba(255, 0, 85, ${opacity * 2})`;
-                    ctx.beginPath();
-                    ctx.arc(node.x, node.y, 2, 0, Math.PI * 2);
-                    ctx.fill();
+            for (const { segment, isWordLike } of segments) {
+                // 过滤掉纯空格，保留词语和标点
+                if (segment.trim().length > 0) {
+                    tokens.push(segment);
                 }
-
-                // 绘制基础节点
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                ctx.fillRect(node.x, node.y, node.size, node.size);
-            });
-
-            // 更新 HUD 里的 Attention Focus 百比
-            valF.innerText = `${Math.min(100, focusCount * 4)}%`;
-
-            requestAnimationFrame(animate);
+            }
+            return tokens;
         }
 
-        init();
+        const pillColors = [
+            'bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 
+            'bg-purple-100 text-purple-700', 'bg-orange-100 text-orange-700',
+            'bg-pink-100 text-pink-700'
+        ];
 
-        // 滚动显示
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if(entry.isIntersecting) entry.target.style.opacity = 1;
-            });
-        }, { threshold: 0.1 });
-
-        document.querySelectorAll('.cyber-panel').forEach(p => {
-            p.style.opacity = 0;
-            p.style.transition = "opacity 1s ease-out";
-            observer.observe(p);
+        heroInput.addEventListener('input', (e) => {
+            const text = e.target.value; // 移除 trim() 以便处理正在输入的空格
+            if (text.trim().length > 0) {
+                tokenDisplayArea.classList.remove('hidden');
+                const tokens = realTokenize(text); // 使用真实的切词函数
+                
+                tokenContainer.innerHTML = '';
+                tokens.forEach((token, index) => {
+                    const color = pillColors[index % pillColors.length];
+                    const span = document.createElement('span');
+                    span.className = `token-pill px-3 py-1 rounded-md text-sm font-medium ${color}`;
+                    // 稍微缩短动画延迟，让输入体验更跟手
+                    span.style.animationDelay = `${(index % 10) * 0.03}s`; 
+                    span.innerText = token;
+                    tokenContainer.appendChild(span);
+                });
+            } else {
+                tokenDisplayArea.classList.add('hidden');
+            }
         });
 
     </script>
