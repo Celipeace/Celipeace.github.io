@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>切碎语言：Tokenization</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+        }
+        .bg-glow {
+            position: fixed;
+            top: -25%; left: -10%;
+            width: 70vw; height: 70vw;
+            background: radial-gradient(circle, rgba(147,197,253,0.30) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .bg-glow-2 {
+            position: fixed;
+            bottom: -25%; right: -10%;
+            width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(196,181,253,0.30) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .token-pill {
+            animation: popIn 0.26s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: translateY(4px) scale(0.98);
+        }
+        @keyframes popIn {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-blue-200 selection:text-blue-900">
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html#roadmap" class="flex items-center gap-2 text-slate-800 font-bold">
+                <i data-lucide="arrow-left" class="w-5 h-5 text-slate-500"></i>
+                <span>返回主页</span>
+            </a>
+            <div class="flex items-center gap-2 text-sm font-medium text-slate-500">
+                <i data-lucide="scissors" class="w-4 h-4 text-blue-500"></i>
+                <span>STEP 01 · Tokenization</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="pt-28 pb-16 px-6">
+        <div class="max-w-4xl mx-auto">
+            <div class="text-center mb-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-sm font-medium border border-blue-100">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    把一句话变成“模型能吃的积木”
+                </div>
+                <h1 class="text-3xl md:text-5xl font-black tracking-tight text-slate-900 mt-5">
+                    切碎语言：Tokenization
+                </h1>
+                <p class="text-slate-500 mt-4 leading-relaxed">
+                    大模型不是直接“读文字”的。它先把你的输入拆成一小块一小块的 Token，
+                    然后在 Token 的层面做计算和预测。
+                </p>
+            </div>
+
+            <section class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                        <i data-lucide="info" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">Tokenization 是什么？</h2>
+                        <div class="mt-4 space-y-3 text-slate-600 leading-relaxed">
+                            <p>
+                                你可以把一句话想成一整根“面条”。模型一口吞不下，就需要先切成一段段小面条。
+                                每一段就是一个 Token：可能是一个字、一个词、一个标点，甚至是一个词的一部分。
+                            </p>
+                            <p>
+                                关键点不是“切得多漂亮”，而是“切完之后能稳定对应到数字编号”，让模型可以用矩阵运算处理。
+                                这一步只是在做<strong class="text-slate-800">拆分 + 编号</strong>，不是理解含义。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="wand-2" class="w-5 h-5 text-indigo-500"></i>
+                            互动：把输入切成 Token
+                        </h2>
+                        <div class="inline-flex bg-slate-100 rounded-xl p-1">
+                            <button id="mode-word" class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-700 bg-white shadow-sm">按词切</button>
+                            <button id="mode-char" class="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600">按字切</button>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50">
+                            <i data-lucide="message-square" class="w-5 h-5 text-slate-400"></i>
+                            <input id="input-text" type="text" class="w-full bg-transparent outline-none text-slate-800 placeholder-slate-400"
+                                placeholder="输入一句中文或英文试试看，比如：苹果发布了新手机！">
+                        </div>
+                        <div class="mt-4 flex items-center justify-between text-sm text-slate-500">
+                            <span id="mode-hint">当前模式：更像“分词”</span>
+                            <span>Token 数：<span id="token-count" class="font-semibold text-slate-700">0</span></span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <div class="text-xs text-slate-400 mb-2">切开后的 Token：</div>
+                        <div id="token-list" class="flex flex-wrap gap-2 min-h-[44px] items-start"></div>
+                        <div id="empty-tip" class="mt-2 text-sm text-slate-400">输入内容后会在这里出现“积木”。</div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="layers" class="w-5 h-5 text-violet-500"></i>
+                        互动：模拟 BPE “合并积木”
+                    </h2>
+                    <p class="text-slate-600 mt-4 leading-relaxed">
+                        真实模型常用的做法之一是：先从很小的碎片开始（像字母/字），再不断把常一起出现的相邻碎片合并，
+                        让词表更高效。这就是 BPE 思路的一种直观版本。
+                    </p>
+
+                    <div class="mt-5 space-y-3">
+                        <div class="flex items-center gap-3">
+                            <button id="bpe-reset" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700">
+                                重置
+                            </button>
+                            <button id="bpe-step" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">
+                                合并一步
+                            </button>
+                            <div class="text-sm text-slate-500">
+                                已合并：<span id="bpe-steps" class="font-semibold text-slate-700">0</span> 次
+                            </div>
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <div class="text-xs text-slate-400 mb-2">输入（按字起步）：</div>
+                            <div id="bpe-seed" class="mono text-slate-700 break-words"></div>
+                        </div>
+
+                        <div>
+                            <div class="text-xs text-slate-400 mb-2">当前碎片：</div>
+                            <div id="bpe-tokens" class="flex flex-wrap gap-2 min-h-[44px] items-start"></div>
+                        </div>
+
+                        <div class="rounded-xl border border-slate-200 bg-white p-4">
+                            <div class="text-xs text-slate-400 mb-2">这一步合并了：</div>
+                            <div id="bpe-merge" class="text-sm text-slate-700">
+                                点击“合并一步”开始。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-8 bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                <h2 class="text-2xl font-bold text-slate-800">常见误解</h2>
+                <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                        <div class="flex items-center gap-2 text-slate-800 font-semibold">
+                            <i data-lucide="help-circle" class="w-5 h-5 text-slate-500"></i>
+                            Token = 词？
+                        </div>
+                        <p class="mt-2 text-slate-600 leading-relaxed">
+                            不一定。Token 可能是字、词、标点，也可能是“词的一半”。因此“看起来像分词”，但本质是为了方便编码与计算。
+                        </p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                        <div class="flex items-center gap-2 text-slate-800 font-semibold">
+                            <i data-lucide="help-circle" class="w-5 h-5 text-slate-500"></i>
+                            切得越细越好？
+                        </div>
+                        <p class="mt-2 text-slate-600 leading-relaxed">
+                            也不一定。切得太细会让序列变长，算力更贵；切得太粗会让词表膨胀。实际方案是在效率和表达能力之间做权衡。
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white py-10 px-6">
+        <div class="max-w-4xl mx-auto flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+            <p>STEP 01 · Tokenization · 大模型漫游指南</p>
+            <div class="flex gap-4 mt-4 md:mt-0">
+                <a href="index.html#roadmap" class="hover:text-slate-800 transition-colors">回到路线图</a>
+                <a href="index.html" class="hover:text-slate-800 transition-colors">主页</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        const inputText = document.getElementById('input-text');
+        const tokenList = document.getElementById('token-list');
+        const emptyTip = document.getElementById('empty-tip');
+        const tokenCount = document.getElementById('token-count');
+        const modeWordBtn = document.getElementById('mode-word');
+        const modeCharBtn = document.getElementById('mode-char');
+        const modeHint = document.getElementById('mode-hint');
+
+        const pillColors = [
+            'bg-blue-100 text-blue-700',
+            'bg-emerald-100 text-emerald-700',
+            'bg-purple-100 text-purple-700',
+            'bg-orange-100 text-orange-700',
+            'bg-pink-100 text-pink-700'
+        ];
+
+        let tokenizeMode = 'word';
+
+        function segmentWords(text) {
+            if (!text) return [];
+            const segmenter = new Intl.Segmenter('zh-CN', { granularity: 'word' });
+            const segments = segmenter.segment(text);
+            const out = [];
+            for (const { segment } of segments) {
+                if (segment.trim().length > 0) out.push(segment);
+            }
+            return out;
+        }
+
+        function segmentChars(text) {
+            if (!text) return [];
+            const segmenter = new Intl.Segmenter('zh-CN', { granularity: 'grapheme' });
+            const segments = segmenter.segment(text);
+            const out = [];
+            for (const { segment } of segments) {
+                if (segment.trim().length > 0) out.push(segment);
+            }
+            return out;
+        }
+
+        function tokenize(text) {
+            const raw = tokenizeMode === 'word' ? segmentWords(text) : segmentChars(text);
+            return raw;
+        }
+
+        function renderTokens(tokens) {
+            tokenList.innerHTML = '';
+            tokenCount.textContent = String(tokens.length);
+            if (tokens.length === 0) {
+                emptyTip.classList.remove('hidden');
+                return;
+            }
+            emptyTip.classList.add('hidden');
+            tokens.forEach((t, i) => {
+                const span = document.createElement('span');
+                span.className = `token-pill px-3 py-1 rounded-md text-sm font-medium ${pillColors[i % pillColors.length]}`;
+                span.style.animationDelay = `${Math.min(i, 18) * 0.03}s`;
+                span.textContent = t;
+                tokenList.appendChild(span);
+            });
+        }
+
+        function setMode(nextMode) {
+            tokenizeMode = nextMode;
+            if (tokenizeMode === 'word') {
+                modeWordBtn.classList.add('bg-white', 'shadow-sm', 'text-slate-700');
+                modeWordBtn.classList.remove('text-slate-600');
+                modeCharBtn.classList.remove('bg-white', 'shadow-sm', 'text-slate-700');
+                modeCharBtn.classList.add('text-slate-600');
+                modeHint.textContent = '当前模式：更像“分词”';
+            } else {
+                modeCharBtn.classList.add('bg-white', 'shadow-sm', 'text-slate-700');
+                modeCharBtn.classList.remove('text-slate-600');
+                modeWordBtn.classList.remove('bg-white', 'shadow-sm', 'text-slate-700');
+                modeWordBtn.classList.add('text-slate-600');
+                modeHint.textContent = '当前模式：更像“逐字积木”';
+            }
+            renderTokens(tokenize(inputText.value));
+        }
+
+        modeWordBtn.addEventListener('click', () => setMode('word'));
+        modeCharBtn.addEventListener('click', () => setMode('char'));
+        inputText.addEventListener('input', (e) => {
+            renderTokens(tokenize(e.target.value));
+            seedBpe(e.target.value);
+        });
+
+        const bpeReset = document.getElementById('bpe-reset');
+        const bpeStep = document.getElementById('bpe-step');
+        const bpeSteps = document.getElementById('bpe-steps');
+        const bpeSeed = document.getElementById('bpe-seed');
+        const bpeTokens = document.getElementById('bpe-tokens');
+        const bpeMerge = document.getElementById('bpe-merge');
+
+        let bpeState = { baseText: '', tokens: [], steps: 0 };
+
+        function seedBpe(text) {
+            const t = (text || '').trim();
+            bpeState.baseText = t;
+            bpeState.tokens = segmentChars(t);
+            bpeState.steps = 0;
+            bpeSteps.textContent = '0';
+            bpeSeed.textContent = t.length ? t : '（请在左侧输入框输入内容）';
+            bpeMerge.textContent = '点击“合并一步”开始。';
+            renderBpeTokens();
+        }
+
+        function findMostFrequentPair(tokens) {
+            const counts = new Map();
+            for (let i = 0; i < tokens.length - 1; i++) {
+                const a = tokens[i];
+                const b = tokens[i + 1];
+                const key = `${a}\u0000${b}`;
+                counts.set(key, (counts.get(key) || 0) + 1);
+            }
+            let bestKey = null;
+            let bestCount = 0;
+            for (const [k, c] of counts.entries()) {
+                if (c > bestCount) {
+                    bestCount = c;
+                    bestKey = k;
+                }
+            }
+            if (!bestKey) return null;
+            const [a, b] = bestKey.split('\u0000');
+            return { a, b, count: bestCount };
+        }
+
+        function mergePair(tokens, pair) {
+            const out = [];
+            for (let i = 0; i < tokens.length; i++) {
+                if (i < tokens.length - 1 && tokens[i] === pair.a && tokens[i + 1] === pair.b) {
+                    out.push(pair.a + pair.b);
+                    i++;
+                } else {
+                    out.push(tokens[i]);
+                }
+            }
+            return out;
+        }
+
+        function renderBpeTokens() {
+            bpeTokens.innerHTML = '';
+            const tokens = bpeState.tokens || [];
+            if (!tokens.length) {
+                const span = document.createElement('span');
+                span.className = 'text-sm text-slate-400';
+                span.textContent = '这里会显示碎片。';
+                bpeTokens.appendChild(span);
+                return;
+            }
+            tokens.forEach((t, i) => {
+                const span = document.createElement('span');
+                span.className = `token-pill px-3 py-1 rounded-md text-sm font-medium ${pillColors[i % pillColors.length]}`;
+                span.style.animationDelay = `${Math.min(i, 18) * 0.02}s`;
+                span.textContent = t;
+                bpeTokens.appendChild(span);
+            });
+        }
+
+        function doBpeStep() {
+            const tokens = bpeState.tokens || [];
+            if (tokens.length < 2) return;
+            const pair = findMostFrequentPair(tokens);
+            if (!pair || pair.count < 2) {
+                bpeMerge.textContent = '没有足够重复的相邻组合了：继续合并意义不大。可以输入更长的句子试试。';
+                return;
+            }
+            const next = mergePair(tokens, pair);
+            bpeState.tokens = next;
+            bpeState.steps += 1;
+            bpeSteps.textContent = String(bpeState.steps);
+            bpeMerge.innerHTML = `把 <span class="mono px-1 rounded bg-slate-100">${pair.a}</span> + <span class="mono px-1 rounded bg-slate-100">${pair.b}</span> 合并成 <span class="mono px-1 rounded bg-indigo-50 text-indigo-700">${pair.a + pair.b}</span>（出现 ${pair.count} 次）`;
+            renderBpeTokens();
+        }
+
+        bpeReset.addEventListener('click', () => seedBpe(inputText.value));
+        bpeStep.addEventListener('click', doBpeStep);
+
+        setMode('word');
+        seedBpe('');
+    </script>
+</body>
+</html>

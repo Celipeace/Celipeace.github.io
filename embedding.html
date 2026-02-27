@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>理解含义：Embedding</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+        }
+        .bg-glow {
+            position: fixed;
+            top: -25%; left: -10%;
+            width: 70vw; height: 70vw;
+            background: radial-gradient(circle, rgba(99,102,241,0.22) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .bg-glow-2 {
+            position: fixed;
+            bottom: -25%; right: -10%;
+            width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(147,197,253,0.22) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .pill {
+            animation: popIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: translateY(4px) scale(0.98);
+        }
+        @keyframes popIn {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        canvas { display: block; }
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-indigo-200 selection:text-indigo-900">
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html#roadmap" class="flex items-center gap-2 text-slate-800 font-bold">
+                <i data-lucide="arrow-left" class="w-5 h-5 text-slate-500"></i>
+                <span>返回主页</span>
+            </a>
+            <div class="flex items-center gap-2 text-sm font-medium text-slate-500">
+                <i data-lucide="compass" class="w-4 h-4 text-indigo-500"></i>
+                <span>STEP 02 · Embedding</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="pt-28 pb-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-sm font-medium border border-indigo-100">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    把“词”放进一张能测距离的地图
+                </div>
+                <h1 class="text-3xl md:text-5xl font-black tracking-tight text-slate-900 mt-5">
+                    理解含义：Embedding
+                </h1>
+                <p class="text-slate-500 mt-4 leading-relaxed">
+                    模型不会直接理解“苹果”是什么意思。它会把每个 Token 变成一串数字（向量），
+                    然后用“距离/夹角”来表示相似与不相似。
+                </p>
+            </div>
+
+            <section class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                        <i data-lucide="info" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">一句话理解 Embedding</h2>
+                        <div class="mt-4 space-y-3 text-slate-600 leading-relaxed">
+                            <p>
+                                把每个 Token 想成“地图上的一个点”。点的位置不是人为写死的，而是训练出来的：
+                                如果两个词经常出现在类似语境里，它们会在地图上更靠近。
+                            </p>
+                            <p>
+                                这张地图实际在<strong class="text-slate-800">高维空间</strong>里（比如几百到上千维）。
+                                下面的演示只用二维画出来，目的是让你直观看到“靠近 ≈ 更像”。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="map" class="w-5 h-5 text-indigo-500"></i>
+                            互动：在“语义地图”上看距离
+                        </h2>
+                        <button id="btn-reroll" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700">
+                            重新摆放
+                        </button>
+                    </div>
+
+                    <p class="text-slate-600 mt-4 leading-relaxed">
+                        选择两个词，观察它们在图上的距离和相似度（用“夹角”近似）。
+                        拖动点也可以模拟“学到更好位置”。
+                    </p>
+
+                    <div class="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-xs text-slate-400">词 A</label>
+                            <select id="sel-a" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-800">
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-xs text-slate-400">词 B</label>
+                            <select id="sel-b" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-800">
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-slate-600">
+                                余弦相似度：
+                                <span id="cos-val" class="font-semibold text-slate-800">0.00</span>
+                            </div>
+                            <div class="text-sm text-slate-500">
+                                距离：
+                                <span id="dist-val" class="font-semibold text-slate-700">0.00</span>
+                            </div>
+                        </div>
+                        <div class="mt-3 h-2 rounded-full bg-slate-200 overflow-hidden">
+                            <div id="cos-bar" class="h-full bg-indigo-500 w-1/2 transition-all"></div>
+                        </div>
+                        <div class="mt-2 text-xs text-slate-400">
+                            这里把相似度映射到 0%~100% 仅用于展示（真实数值范围是 -1~1）。
+                        </div>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                        <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                            <div class="text-sm font-medium text-slate-700">二维示意图</div>
+                            <div class="text-xs text-slate-400">拖动点 · 点击空白取消选择</div>
+                        </div>
+                        <div class="p-3">
+                            <canvas id="map-canvas" class="w-full h-[280px]"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="calculator" class="w-5 h-5 text-violet-500"></i>
+                        互动：向量长什么样？
+                    </h2>
+                    <p class="text-slate-600 mt-4 leading-relaxed">
+                        在真实模型里，Embedding 是高维浮点数向量。这里用一个“缩小版向量”（8 维）做演示：
+                        相似的词会有更像的数字形状。
+                    </p>
+
+                    <div class="mt-5">
+                        <label class="text-xs text-slate-400">选择一个词</label>
+                        <select id="sel-v" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-800"></select>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="text-xs text-slate-400 mb-2">向量（8 维示意）</div>
+                        <div id="vec-row" class="grid grid-cols-4 gap-2"></div>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+                        <div class="text-sm font-semibold text-slate-800">把它记成一句话</div>
+                        <p class="mt-2 text-slate-600 leading-relaxed">
+                            Embedding 就像给每个词发一张“坐标身份证”。模型不会问“你是谁”，
+                            它更像问：你和谁更近？和谁更像？
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white py-10 px-6">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+            <p>STEP 02 · Embedding · 大模型漫游指南</p>
+            <div class="flex gap-4 mt-4 md:mt-0">
+                <a href="index.html#roadmap" class="hover:text-slate-800 transition-colors">回到路线图</a>
+                <a href="index.html" class="hover:text-slate-800 transition-colors">主页</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        const items = [
+            { id: '苹果', group: 'food' },
+            { id: '香蕉', group: 'food' },
+            { id: '西瓜', group: 'food' },
+            { id: '手机', group: 'tech' },
+            { id: '电脑', group: 'tech' },
+            { id: '相机', group: 'tech' },
+            { id: '医生', group: 'job' },
+            { id: '护士', group: 'job' },
+            { id: '老师', group: 'job' },
+            { id: '足球', group: 'sport' },
+            { id: '篮球', group: 'sport' },
+            { id: '网球', group: 'sport' },
+        ];
+
+        const groupColor = {
+            food: { fill: '#DBEAFE', stroke: '#2563EB', text: '#1D4ED8' },
+            tech: { fill: '#E0E7FF', stroke: '#4F46E5', text: '#4338CA' },
+            job: { fill: '#F5D0FE', stroke: '#A21CAF', text: '#86198F' },
+            sport: { fill: '#DCFCE7', stroke: '#16A34A', text: '#15803D' },
+        };
+
+        function mulberry32(seed) {
+            return function() {
+                let t = seed += 0x6D2B79F5;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            }
+        }
+
+        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+        function randn(rand) {
+            let u = 0, v = 0;
+            while (u === 0) u = rand();
+            while (v === 0) v = rand();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        }
+
+        function norm2(v) {
+            const s = v[0]*v[0] + v[1]*v[1];
+            return Math.sqrt(s);
+        }
+
+        function cosine(a, b) {
+            const dot = a[0]*b[0] + a[1]*b[1];
+            const na = norm2(a);
+            const nb = norm2(b);
+            if (na === 0 || nb === 0) return 0;
+            return dot / (na * nb);
+        }
+
+        function dist(a, b) {
+            const dx = a[0] - b[0];
+            const dy = a[1] - b[1];
+            return Math.sqrt(dx*dx + dy*dy);
+        }
+
+        let points = [];
+
+        function buildPoints(seed) {
+            const rand = mulberry32(seed);
+            const centers = {
+                food: [0.25 + 0.05 * randn(rand), 0.70 + 0.06 * randn(rand)],
+                tech: [0.78 + 0.05 * randn(rand), 0.68 + 0.06 * randn(rand)],
+                job: [0.32 + 0.06 * randn(rand), 0.28 + 0.06 * randn(rand)],
+                sport: [0.78 + 0.06 * randn(rand), 0.28 + 0.06 * randn(rand)],
+            };
+
+            points = items.map((it, idx) => {
+                const c = centers[it.group];
+                const x = clamp(c[0] + 0.06 * randn(rand), 0.08, 0.92);
+                const y = clamp(c[1] + 0.06 * randn(rand), 0.08, 0.92);
+                const vec8 = new Array(8).fill(0).map((_, j) => {
+                    const base = it.group === 'food' ? (j % 2 === 0 ? 0.7 : -0.2)
+                        : it.group === 'tech' ? (j % 2 === 0 ? 0.2 : 0.7)
+                        : it.group === 'job' ? (j < 4 ? 0.6 : -0.1)
+                        : (j < 4 ? -0.1 : 0.6);
+                    const n = 0.18 * randn(rand);
+                    return clamp(base + n, -1.0, 1.0);
+                });
+                return { id: it.id, group: it.group, p: [x, y], vec8, r: 18 + (idx % 3) * 1.2 };
+            });
+        }
+
+        const selA = document.getElementById('sel-a');
+        const selB = document.getElementById('sel-b');
+        const selV = document.getElementById('sel-v');
+        const cosVal = document.getElementById('cos-val');
+        const distVal = document.getElementById('dist-val');
+        const cosBar = document.getElementById('cos-bar');
+        const btnReroll = document.getElementById('btn-reroll');
+        const vecRow = document.getElementById('vec-row');
+
+        const canvas = document.getElementById('map-canvas');
+        const ctx = canvas.getContext('2d');
+        let dpr = window.devicePixelRatio || 1;
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.floor(rect.width * dpr);
+            canvas.height = Math.floor(rect.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            draw();
+        }
+
+        function setOptions(select, initialIndex) {
+            select.innerHTML = '';
+            points.forEach((pt, i) => {
+                const opt = document.createElement('option');
+                opt.value = pt.id;
+                opt.textContent = pt.id;
+                if (i === initialIndex) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function getPointById(id) {
+            return points.find(p => p.id === id) || points[0];
+        }
+
+        function renderVec8(pt) {
+            vecRow.innerHTML = '';
+            pt.vec8.forEach((v, i) => {
+                const box = document.createElement('div');
+                const pos = v >= 0;
+                const bg = pos ? 'bg-indigo-100 text-indigo-700 border-indigo-200' : 'bg-slate-100 text-slate-700 border-slate-200';
+                box.className = `pill mono px-2 py-2 rounded-xl border text-sm ${bg}`;
+                box.style.animationDelay = `${i * 0.02}s`;
+                box.textContent = (v >= 0 ? '+' : '') + v.toFixed(2);
+                vecRow.appendChild(box);
+            });
+        }
+
+        function updateMetrics() {
+            const a = getPointById(selA.value);
+            const b = getPointById(selB.value);
+            const ca = toVec(a);
+            const cb = toVec(b);
+            const c = cosine(ca, cb);
+            const d = dist(ca, cb);
+            cosVal.textContent = c.toFixed(2);
+            distVal.textContent = d.toFixed(2);
+            const mapped = clamp((c + 1) / 2, 0, 1);
+            cosBar.style.width = `${Math.round(mapped * 100)}%`;
+            draw();
+        }
+
+        function toVec(pt) {
+            return [pt.p[0] - 0.5, pt.p[1] - 0.5];
+        }
+
+        let drag = { active: false, id: null, dx: 0, dy: 0 };
+        let selectedId = null;
+
+        function hitTest(x, y) {
+            const rect = canvas.getBoundingClientRect();
+            const px = x - rect.left;
+            const py = y - rect.top;
+            const w = rect.width;
+            const h = rect.height;
+            for (let i = points.length - 1; i >= 0; i--) {
+                const pt = points[i];
+                const cx = pt.p[0] * w;
+                const cy = pt.p[1] * h;
+                const r = pt.r;
+                const dx = px - cx;
+                const dy = py - cy;
+                if (dx*dx + dy*dy <= r*r) return { pt, px, py, cx, cy, w, h };
+            }
+            return null;
+        }
+
+        function drawGrid(w, h) {
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+
+            ctx.strokeStyle = '#E2E8F0';
+            ctx.lineWidth = 1;
+            const step = 40;
+            for (let x = step; x < w; x += step) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, h);
+                ctx.stroke();
+            }
+            for (let y = step; y < h; y += step) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(w, y);
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = '#CBD5E1';
+            ctx.beginPath();
+            ctx.moveTo(w / 2, 0);
+            ctx.lineTo(w / 2, h);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(0, h / 2);
+            ctx.lineTo(w, h / 2);
+            ctx.stroke();
+        }
+
+        function drawLink(a, b, w, h) {
+            const pa = getPointById(a);
+            const pb = getPointById(b);
+            if (!pa || !pb) return;
+            const ax = pa.p[0] * w;
+            const ay = pa.p[1] * h;
+            const bx = pb.p[0] * w;
+            const by = pb.p[1] * h;
+            ctx.strokeStyle = 'rgba(79, 70, 229, 0.35)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(ax, ay);
+            ctx.lineTo(bx, by);
+            ctx.stroke();
+        }
+
+        function drawPoint(pt, w, h) {
+            const c = groupColor[pt.group];
+            const x = pt.p[0] * w;
+            const y = pt.p[1] * h;
+            const isSelected = pt.id === selectedId || pt.id === selA.value || pt.id === selB.value;
+            const ring = isSelected ? 5 : 2;
+
+            ctx.beginPath();
+            ctx.arc(x, y, pt.r + ring, 0, Math.PI * 2);
+            ctx.fillStyle = isSelected ? 'rgba(79,70,229,0.12)' : 'rgba(148,163,184,0.12)';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(x, y, pt.r, 0, Math.PI * 2);
+            ctx.fillStyle = c.fill;
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = c.stroke;
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '12px "Noto Sans SC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(pt.id, x, y);
+        }
+
+        function draw() {
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+            drawGrid(w, h);
+            drawLink(selA.value, selB.value, w, h);
+            points.forEach(pt => drawPoint(pt, w, h));
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const hit = hitTest(e.clientX, e.clientY);
+            if (!hit) {
+                selectedId = null;
+                draw();
+                return;
+            }
+            selectedId = hit.pt.id;
+            drag.active = true;
+            drag.id = hit.pt.id;
+            drag.dx = hit.px - hit.cx;
+            drag.dy = hit.py - hit.cy;
+            draw();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!drag.active) return;
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+            const px = e.clientX - rect.left;
+            const py = e.clientY - rect.top;
+            const nx = clamp((px - drag.dx) / w, 0.06, 0.94);
+            const ny = clamp((py - drag.dy) / h, 0.06, 0.94);
+            const pt = getPointById(drag.id);
+            pt.p = [nx, ny];
+            updateMetrics();
+        });
+
+        window.addEventListener('mouseup', () => {
+            drag.active = false;
+            drag.id = null;
+        });
+
+        function init() {
+            buildPoints(Math.floor(Math.random() * 1e9));
+            setOptions(selA, 0);
+            setOptions(selB, 3);
+            setOptions(selV, 0);
+            selV.value = points[0].id;
+            renderVec8(getPointById(selV.value));
+            resizeCanvas();
+            updateMetrics();
+        }
+
+        btnReroll.addEventListener('click', () => {
+            buildPoints(Math.floor(Math.random() * 1e9));
+            setOptions(selA, points.findIndex(p => p.id === selA.value) >= 0 ? points.findIndex(p => p.id === selA.value) : 0);
+            setOptions(selB, points.findIndex(p => p.id === selB.value) >= 0 ? points.findIndex(p => p.id === selB.value) : 1);
+            setOptions(selV, points.findIndex(p => p.id === selV.value) >= 0 ? points.findIndex(p => p.id === selV.value) : 0);
+            renderVec8(getPointById(selV.value));
+            updateMetrics();
+        });
+
+        selA.addEventListener('change', updateMetrics);
+        selB.addEventListener('change', updateMetrics);
+        selV.addEventListener('change', () => renderVec8(getPointById(selV.value)));
+        window.addEventListener('resize', resizeCanvas);
+
+        init();
+    </script>
+</body>
+</html>

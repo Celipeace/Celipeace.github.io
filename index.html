@@ -230,9 +230,16 @@
             roadmapData.forEach(data => {
                 const desc = isGeekMode ? data.geek : data.intuition;
                 const colors = colorClasses[data.color];
+                const hrefMap = {
+                    tokenization: 'tokenization.html',
+                    embedding: 'embedding.html',
+                    attention: 'attention.html',
+                    generation: 'generation.html'
+                };
+                const href = hrefMap[data.id] || '#';
 
                 const cardHTML = `
-                    <a href="#" class="nav-card block bg-white border border-slate-200 rounded-2xl p-8 cursor-pointer group relative overflow-hidden">
+                    <a href="${href}" class="nav-card block bg-white border border-slate-200 rounded-2xl p-8 cursor-pointer group relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-32 h-32 ${colors.bg} rounded-bl-full -z-10 opacity-50 transition-transform group-hover:scale-110"></div>
                         
                         <div class="flex justify-between items-start mb-6">

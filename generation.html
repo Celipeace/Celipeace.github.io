@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文字接龙：Generation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+        }
+        .bg-glow {
+            position: fixed;
+            top: -25%; left: -10%;
+            width: 70vw; height: 70vw;
+            background: radial-gradient(circle, rgba(244,114,182,0.24) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .bg-glow-2 {
+            position: fixed;
+            bottom: -25%; right: -10%;
+            width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(217,70,239,0.18) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .token-pill {
+            animation: popIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: translateY(4px) scale(0.98);
+        }
+        @keyframes popIn {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-fuchsia-200 selection:text-fuchsia-900">
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html#roadmap" class="flex items-center gap-2 text-slate-800 font-bold">
+                <i data-lucide="arrow-left" class="w-5 h-5 text-slate-500"></i>
+                <span>返回主页</span>
+            </a>
+            <div class="flex items-center gap-2 text-sm font-medium text-slate-500">
+                <i data-lucide="play-circle" class="w-4 h-4 text-fuchsia-500"></i>
+                <span>STEP 04 · Generation</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="pt-28 pb-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-fuchsia-50 text-fuchsia-600 text-sm font-medium border border-fuchsia-100">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    一步一步猜“下一个词”
+                </div>
+                <h1 class="text-3xl md:text-5xl font-black tracking-tight text-slate-900 mt-5">
+                    文字接龙：Generation
+                </h1>
+                <p class="text-slate-500 mt-4 leading-relaxed">
+                    大模型生成文本的本质是：根据已有内容，预测下一个 Token 的概率，
+                    再从概率里“抽取”一个继续往下接。
+                </p>
+            </div>
+
+            <section class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-fuchsia-50 text-fuchsia-600 flex items-center justify-center shrink-0">
+                        <i data-lucide="info" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">一句话理解 Generation</h2>
+                        <div class="mt-4 space-y-3 text-slate-600 leading-relaxed">
+                            <p>
+                                你可以把它想成“猜词接龙”：模型每次只做一件事——猜下一个词最可能是什么。
+                                不停重复这个动作，就变成了一段完整的文字。
+                            </p>
+                            <p>
+                                关键不是“唯一正确”，而是“概率分布”：你可以让它更稳妥（低温度）或更发散（高温度）。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="wand-2" class="w-5 h-5 text-fuchsia-500"></i>
+                            互动：一步一步生成
+                        </h2>
+                        <div class="flex items-center gap-2 text-sm text-slate-500">
+                            温度
+                            <input id="temp" type="range" min="0" max="100" value="45" class="accent-fuchsia-600">
+                            <span id="temp-val" class="w-10 text-right font-medium text-slate-700">0.45</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5">
+                        <label class="text-xs text-slate-400">选择提示词</label>
+                        <select id="prompt" class="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-slate-800">
+                            <option value="story">从前有一只小狐狸</option>
+                            <option value="tech">大模型可以帮助我们</option>
+                            <option value="poem">夜色静静地</option>
+                            <option value="travel">我在山间小路上</option>
+                        </select>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="text-xs text-slate-400 mb-2">当前文本</div>
+                        <div id="output" class="text-slate-800 leading-relaxed"></div>
+                    </div>
+
+                    <div class="mt-4 flex flex-wrap gap-3">
+                        <button id="btn-step" class="px-4 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-700 text-white text-sm font-medium">
+                            生成一个 Token
+                        </button>
+                        <button id="btn-run" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700">
+                            连续生成 5 个
+                        </button>
+                        <button id="btn-reset" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700">
+                            重置
+                        </button>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="bar-chart-3" class="w-5 h-5 text-fuchsia-500"></i>
+                        互动：下一个 Token 的概率
+                    </h2>
+                    <p class="text-slate-600 mt-4 leading-relaxed">
+                        下方是当前一步的候选 Token 概率分布（只显示前 6 个）。温度越高，
+                        分布越“平”，更容易抽到不那么常见的词。
+                    </p>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="text-xs text-slate-400 mb-3">候选列表</div>
+                        <div id="candidates" class="space-y-2"></div>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+                        <div class="text-sm font-semibold text-slate-800">把它记成一句话</div>
+                        <p class="mt-2 text-slate-600 leading-relaxed">
+                            Generation 不是“写作文”，而是“每一步挑一个最可能的词”。
+                            温度调低更稳，调高更有惊喜。
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white py-10 px-6">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+            <p>STEP 04 · Generation · 大模型漫游指南</p>
+            <div class="flex gap-4 mt-4 md:mt-0">
+                <a href="index.html#roadmap" class="hover:text-slate-800 transition-colors">回到路线图</a>
+                <a href="index.html" class="hover:text-slate-800 transition-colors">主页</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        const promptSel = document.getElementById('prompt');
+        const outputEl = document.getElementById('output');
+        const candidatesEl = document.getElementById('candidates');
+        const tempInput = document.getElementById('temp');
+        const tempVal = document.getElementById('temp-val');
+        const btnStep = document.getElementById('btn-step');
+        const btnRun = document.getElementById('btn-run');
+        const btnReset = document.getElementById('btn-reset');
+
+        const vocab = {
+            story: [
+                ['在', 0.16], ['森林', 0.14], ['里', 0.12], ['遇到', 0.10], ['一只', 0.08], ['迷路', 0.06],
+                ['小兔', 0.05], ['于是', 0.05], ['决定', 0.04], ['帮助', 0.04], ['它', 0.03], ['一起', 0.03],
+                ['回家', 0.02], ['。', 0.02]
+            ],
+            tech: [
+                ['更', 0.18], ['快速', 0.14], ['总结', 0.12], ['知识', 0.10], ['并', 0.08], ['提供', 0.07],
+                ['建议', 0.06], ['但', 0.05], ['需要', 0.05], ['人类', 0.05], ['判断', 0.04], ['。', 0.03]
+            ],
+            poem: [
+                ['像', 0.15], ['一条', 0.12], ['柔软', 0.10], ['的', 0.10], ['河', 0.08], ['风', 0.08],
+                ['把', 0.07], ['灯光', 0.06], ['轻轻', 0.05], ['吹', 0.05], ['动', 0.04], ['。', 0.03]
+            ],
+            travel: [
+                ['看见', 0.15], ['远处', 0.12], ['的', 0.10], ['云', 0.10], ['慢慢', 0.09], ['飘', 0.08],
+                ['我', 0.07], ['忍不住', 0.06], ['停下', 0.05], ['脚步', 0.05], ['。', 0.03]
+            ],
+        };
+
+        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+        function temperatureAdjust(items, t) {
+            const temp = Math.max(0.08, t);
+            const logits = items.map(([, p]) => Math.log(p));
+            const scaled = logits.map(l => l / temp);
+            const m = Math.max(...scaled);
+            const exps = scaled.map(x => Math.exp(x - m));
+            const sum = exps.reduce((a, b) => a + b, 0);
+            return items.map(([w], i) => [w, exps[i] / (sum || 1)]);
+        }
+
+        function sample(items) {
+            const r = Math.random();
+            let acc = 0;
+            for (const [w, p] of items) {
+                acc += p;
+                if (r <= acc) return w;
+            }
+            return items[items.length - 1][0];
+        }
+
+        let state = { promptKey: 'story', tokens: [] };
+
+        function renderOutput() {
+            outputEl.textContent = state.tokens.join('');
+        }
+
+        function renderCandidates(list) {
+            candidatesEl.innerHTML = '';
+            list.slice(0, 6).forEach(([w, p], i) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-3';
+                const left = document.createElement('div');
+                left.className = 'w-20 text-sm text-slate-700';
+                left.textContent = w;
+                const barWrap = document.createElement('div');
+                barWrap.className = 'flex-1 h-2 rounded-full bg-slate-200 overflow-hidden';
+                const bar = document.createElement('div');
+                bar.className = 'h-full bg-fuchsia-500 transition-all';
+                bar.style.width = `${Math.round(p * 100)}%`;
+                barWrap.appendChild(bar);
+                const right = document.createElement('div');
+                right.className = 'w-12 text-right text-xs text-slate-500';
+                right.textContent = `${Math.round(p * 100)}%`;
+                row.appendChild(left);
+                row.appendChild(barWrap);
+                row.appendChild(right);
+                row.style.animation = 'none';
+                candidatesEl.appendChild(row);
+            });
+        }
+
+        function reset() {
+            state.promptKey = promptSel.value;
+            state.tokens = [promptSel.options[promptSel.selectedIndex].textContent];
+            renderOutput();
+            updateCandidates();
+        }
+
+        function updateCandidates() {
+            const t = Number(tempInput.value) / 100;
+            tempVal.textContent = t.toFixed(2);
+            const items = vocab[state.promptKey];
+            const adjusted = temperatureAdjust(items, t);
+            adjusted.sort((a, b) => b[1] - a[1]);
+            renderCandidates(adjusted);
+        }
+
+        function stepOnce() {
+            const t = Number(tempInput.value) / 100;
+            const items = temperatureAdjust(vocab[state.promptKey], t);
+            const word = sample(items);
+            state.tokens.push(word);
+            renderOutput();
+            updateCandidates();
+        }
+
+        function runMany() {
+            for (let i = 0; i < 5; i++) stepOnce();
+        }
+
+        promptSel.addEventListener('change', reset);
+        tempInput.addEventListener('input', updateCandidates);
+        btnStep.addEventListener('click', stepOnce);
+        btnRun.addEventListener('click', runMany);
+        btnReset.addEventListener('click', reset);
+
+        reset();
+    </script>
+</body>
+</html>

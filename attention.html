@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抓住重点：Attention</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+        }
+        .bg-glow {
+            position: fixed;
+            top: -25%; left: -10%;
+            width: 70vw; height: 70vw;
+            background: radial-gradient(circle, rgba(196,181,253,0.26) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .bg-glow-2 {
+            position: fixed;
+            bottom: -25%; right: -10%;
+            width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(147,197,253,0.18) 0%, rgba(248,250,252,0) 70%);
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .pill {
+            animation: popIn 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+            opacity: 0;
+            transform: translateY(4px) scale(0.98);
+        }
+        @keyframes popIn {
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .mono {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-violet-200 selection:text-violet-900">
+    <div class="bg-glow"></div>
+    <div class="bg-glow-2"></div>
+
+    <header class="fixed top-0 w-full z-50 bg-white/70 backdrop-blur-md border-b border-slate-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+            <a href="index.html#roadmap" class="flex items-center gap-2 text-slate-800 font-bold">
+                <i data-lucide="arrow-left" class="w-5 h-5 text-slate-500"></i>
+                <span>返回主页</span>
+            </a>
+            <div class="flex items-center gap-2 text-sm font-medium text-slate-500">
+                <i data-lucide="link-2" class="w-4 h-4 text-violet-500"></i>
+                <span>STEP 03 · Attention</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="pt-28 pb-16 px-6">
+        <div class="max-w-5xl mx-auto">
+            <div class="text-center mb-10">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-violet-50 text-violet-600 text-sm font-medium border border-violet-100">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                    让词和词“互相看一眼”
+                </div>
+                <h1 class="text-3xl md:text-5xl font-black tracking-tight text-slate-900 mt-5">
+                    抓住重点：Attention
+                </h1>
+                <p class="text-slate-500 mt-4 leading-relaxed">
+                    当你读一句话时，你会把注意力放在关键处。Attention 的直觉版就是：
+                    每个词都去“参考”其他词，然后决定该听谁的。
+                </p>
+            </div>
+
+            <section class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
+                        <i data-lucide="info" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800">一句话理解 Attention</h2>
+                        <div class="mt-4 space-y-3 text-slate-600 leading-relaxed">
+                            <p>
+                                你可以把它想成“拉线”：当我们在处理某个词时，会向句子里其他词拉线，
+                                线越粗表示越相关，然后把这些信息综合起来，得到更好的上下文理解。
+                            </p>
+                            <p>
+                                下面的演示不是完整数学实现，而是一个<strong class="text-slate-800">可视化的直觉版</strong>：
+                                点一个词，看它最关注谁。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                    <div class="flex items-center justify-between gap-3">
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="mouse-pointer-click" class="w-5 h-5 text-violet-500"></i>
+                            互动：点一个词，看它“关注谁”
+                        </h2>
+                        <select id="sel-sent" class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800">
+                            <option value="apple_phone">苹果 发布 了 新 手机</option>
+                            <option value="river_bank">我 坐 在 河岸 上 休息</option>
+                            <option value="company_bank">我 去 银行 办理 业务</option>
+                            <option value="ref_pron">小明 把 球 递给 小红 因为 她 很 快</option>
+                        </select>
+                    </div>
+
+                    <p class="text-slate-600 mt-4 leading-relaxed">
+                        每次选择一个“正在处理的词”（Query），它会给句子里的其他词打分（Key），
+                        然后把相关信息汇总（Value）。你会看到：同一个词在不同句子里会关注不同对象。
+                    </p>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="text-xs text-slate-400 mb-2">句子 Token（点击任意一个）</div>
+                        <div id="token-row" class="flex flex-wrap gap-2"></div>
+                        <div class="mt-3 text-sm text-slate-600">
+                            当前选中：
+                            <span id="cur-token" class="font-semibold text-slate-800">（未选择）</span>
+                        </div>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-white overflow-hidden">
+                        <div class="px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                            <div class="text-sm font-medium text-slate-700">注意力线条</div>
+                            <div class="text-xs text-slate-400">线越粗 = 相关性越强</div>
+                        </div>
+                        <div class="p-3">
+                            <canvas id="attn-canvas" class="w-full h-[260px]"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i data-lucide="grid-3x3" class="w-5 h-5 text-indigo-500"></i>
+                        互动：注意力权重条形图
+                    </h2>
+                    <p class="text-slate-600 mt-4 leading-relaxed">
+                        把“拉线”换一种视角：对当前词来说，每个词的权重加起来等于 1。
+                        权重不是固定规则，而是模型算出来的“该看谁更有用”。
+                    </p>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                        <div class="text-xs text-slate-400 mb-3">权重分布（从大到小）</div>
+                        <div id="bar-list" class="space-y-2"></div>
+                    </div>
+
+                    <div class="mt-5 rounded-2xl border border-slate-200 bg-white p-5">
+                        <div class="text-sm font-semibold text-slate-800">把它记成一句话</div>
+                        <p class="mt-2 text-slate-600 leading-relaxed">
+                            Attention 不是“找关键词”，而是“给每个词一张可变的参考清单”：
+                            当前词要理解自己，就去看一眼其他词，看看谁最相关。
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="border-t border-slate-200 bg-white py-10 px-6">
+        <div class="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center text-slate-500 text-sm">
+            <p>STEP 03 · Attention · 大模型漫游指南</p>
+            <div class="flex gap-4 mt-4 md:mt-0">
+                <a href="index.html#roadmap" class="hover:text-slate-800 transition-colors">回到路线图</a>
+                <a href="index.html" class="hover:text-slate-800 transition-colors">主页</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        const pillColors = [
+            'bg-violet-100 text-violet-700 border-violet-200',
+            'bg-indigo-100 text-indigo-700 border-indigo-200',
+            'bg-blue-100 text-blue-700 border-blue-200',
+            'bg-emerald-100 text-emerald-700 border-emerald-200',
+            'bg-pink-100 text-pink-700 border-pink-200',
+            'bg-orange-100 text-orange-700 border-orange-200'
+        ];
+
+        const sentences = {
+            apple_phone: ['苹果', '发布', '了', '新', '手机'],
+            river_bank: ['我', '坐', '在', '河岸', '上', '休息'],
+            company_bank: ['我', '去', '银行', '办理', '业务'],
+            ref_pron: ['小明', '把', '球', '递给', '小红', '因为', '她', '很', '快'],
+        };
+
+        function mulberry32(seed) {
+            return function() {
+                let t = seed += 0x6D2B79F5;
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            }
+        }
+
+        function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+
+        function softmax(xs) {
+            const m = Math.max(...xs);
+            const exps = xs.map(x => Math.exp(x - m));
+            const s = exps.reduce((a, b) => a + b, 0);
+            return exps.map(e => e / (s || 1));
+        }
+
+        function makeWeights(tokens, qIndex) {
+            const n = tokens.length;
+            const scores = new Array(n).fill(0);
+
+            const t = tokens[qIndex];
+            for (let i = 0; i < n; i++) {
+                scores[i] = -0.4 * Math.abs(i - qIndex);
+            }
+
+            if (tokens.join(' ') === sentences.apple_phone.join(' ')) {
+                if (t === '苹果') {
+                    const phoneIdx = tokens.indexOf('手机');
+                    if (phoneIdx >= 0) scores[phoneIdx] += 1.3;
+                    const newIdx = tokens.indexOf('新');
+                    if (newIdx >= 0) scores[newIdx] += 0.5;
+                }
+                if (t === '手机') {
+                    const appleIdx = tokens.indexOf('苹果');
+                    if (appleIdx >= 0) scores[appleIdx] += 0.8;
+                    const releaseIdx = tokens.indexOf('发布');
+                    if (releaseIdx >= 0) scores[releaseIdx] += 0.6;
+                }
+            }
+
+            if (tokens.join(' ') === sentences.river_bank.join(' ')) {
+                if (t === '河岸') {
+                    const restIdx = tokens.indexOf('休息');
+                    if (restIdx >= 0) scores[restIdx] += 0.7;
+                    const onIdx = tokens.indexOf('上');
+                    if (onIdx >= 0) scores[onIdx] += 0.4;
+                }
+            }
+
+            if (tokens.join(' ') === sentences.company_bank.join(' ')) {
+                if (t === '银行') {
+                    const bizIdx = tokens.indexOf('业务');
+                    if (bizIdx >= 0) scores[bizIdx] += 1.0;
+                    const handleIdx = tokens.indexOf('办理');
+                    if (handleIdx >= 0) scores[handleIdx] += 0.6;
+                }
+            }
+
+            if (tokens.join(' ') === sentences.ref_pron.join(' ')) {
+                if (t === '她') {
+                    const hongIdx = tokens.indexOf('小红');
+                    if (hongIdx >= 0) scores[hongIdx] += 1.2;
+                    const fastIdx = tokens.indexOf('快');
+                    if (fastIdx >= 0) scores[fastIdx] += 0.6;
+                }
+                if (t === '递给') {
+                    const mingIdx = tokens.indexOf('小明');
+                    const hongIdx = tokens.indexOf('小红');
+                    const ballIdx = tokens.indexOf('球');
+                    if (mingIdx >= 0) scores[mingIdx] += 0.7;
+                    if (hongIdx >= 0) scores[hongIdx] += 0.7;
+                    if (ballIdx >= 0) scores[ballIdx] += 0.6;
+                }
+            }
+
+            const rand = mulberry32(20260227 + n * 17 + qIndex * 131);
+            for (let i = 0; i < n; i++) scores[i] += (rand() - 0.5) * 0.12;
+
+            return softmax(scores);
+        }
+
+        const selSent = document.getElementById('sel-sent');
+        const tokenRow = document.getElementById('token-row');
+        const curToken = document.getElementById('cur-token');
+        const barList = document.getElementById('bar-list');
+
+        const canvas = document.getElementById('attn-canvas');
+        const ctx = canvas.getContext('2d');
+        let dpr = window.devicePixelRatio || 1;
+
+        function resizeCanvas() {
+            const rect = canvas.getBoundingClientRect();
+            dpr = window.devicePixelRatio || 1;
+            canvas.width = Math.floor(rect.width * dpr);
+            canvas.height = Math.floor(rect.height * dpr);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            draw();
+        }
+
+        let state = {
+            key: selSent.value,
+            tokens: sentences[selSent.value],
+            qIndex: null,
+            weights: [],
+            layout: [],
+        };
+
+        function layoutTokens(tokens) {
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+            const n = tokens.length;
+            const left = 26;
+            const right = w - 26;
+            const yTop = 72;
+            const yBottom = h - 72;
+            const gap = n > 1 ? (right - left) / (n - 1) : 0;
+            const rowY = n <= 6 ? [h / 2] : [yTop, yBottom];
+            const out = [];
+            for (let i = 0; i < n; i++) {
+                const x = left + i * gap;
+                const y = rowY.length === 1 ? rowY[0] : (i % 2 === 0 ? rowY[0] : rowY[1]);
+                out.push({ x, y, r: 18 });
+            }
+            return out;
+        }
+
+        function drawBackground(w, h) {
+            ctx.clearRect(0, 0, w, h);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.strokeStyle = '#E2E8F0';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(8, 8, w - 16, h - 16, 16);
+            ctx.stroke();
+        }
+
+        function drawLinks(w, h) {
+            if (state.qIndex === null) return;
+            const q = state.layout[state.qIndex];
+            for (let i = 0; i < state.tokens.length; i++) {
+                const p = state.layout[i];
+                const wt = state.weights[i] || 0;
+                const alpha = 0.05 + 0.55 * wt;
+                const lw = 1 + 10 * wt;
+                ctx.strokeStyle = `rgba(139, 92, 246, ${alpha.toFixed(3)})`;
+                ctx.lineWidth = lw;
+                ctx.beginPath();
+                ctx.moveTo(q.x, q.y);
+                ctx.lineTo(p.x, p.y);
+                ctx.stroke();
+            }
+        }
+
+        function drawToken(i) {
+            const t = state.tokens[i];
+            const p = state.layout[i];
+            const isQ = i === state.qIndex;
+            const wt = state.weights[i] || 0;
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r + (isQ ? 6 : 2), 0, Math.PI * 2);
+            ctx.fillStyle = isQ ? 'rgba(139, 92, 246, 0.15)' : 'rgba(148, 163, 184, 0.12)';
+            ctx.fill();
+
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+            ctx.fillStyle = isQ ? '#EDE9FE' : '#F8FAFC';
+            ctx.fill();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = isQ ? '#8B5CF6' : '#CBD5E1';
+            ctx.stroke();
+
+            ctx.fillStyle = '#0f172a';
+            ctx.font = '12px "Noto Sans SC", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(t, p.x, p.y - 1);
+
+            if (state.qIndex !== null) {
+                ctx.fillStyle = '#64748b';
+                ctx.font = '10px "Noto Sans SC", sans-serif';
+                ctx.fillText(`${Math.round(wt * 100)}%`, p.x, p.y + 18);
+            }
+        }
+
+        function draw() {
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+            drawBackground(w, h);
+            drawLinks(w, h);
+            for (let i = 0; i < state.tokens.length; i++) drawToken(i);
+        }
+
+        function renderTokenRow() {
+            tokenRow.innerHTML = '';
+            state.tokens.forEach((t, i) => {
+                const btn = document.createElement('button');
+                const color = pillColors[i % pillColors.length];
+                const active = state.qIndex === i;
+                btn.className = `pill px-3 py-1.5 rounded-xl border text-sm font-medium transition-all ${color} ${active ? 'ring-2 ring-violet-400 ring-offset-2' : 'hover:-translate-y-0.5'}`;
+                btn.style.animationDelay = `${Math.min(i, 16) * 0.02}s`;
+                btn.textContent = t;
+                btn.addEventListener('click', () => setQuery(i));
+                tokenRow.appendChild(btn);
+            });
+        }
+
+        function renderBars() {
+            barList.innerHTML = '';
+            if (state.qIndex === null) {
+                const div = document.createElement('div');
+                div.className = 'text-sm text-slate-400';
+                div.textContent = '先在左侧点击一个词。';
+                barList.appendChild(div);
+                return;
+            }
+            const pairs = state.tokens.map((t, i) => ({ t, i, w: state.weights[i] || 0 }));
+            pairs.sort((a, b) => b.w - a.w);
+            pairs.forEach((p, rank) => {
+                const row = document.createElement('div');
+                row.className = 'flex items-center gap-3';
+                const left = document.createElement('div');
+                left.className = 'w-20 text-sm text-slate-700 truncate';
+                left.textContent = p.t;
+                const barWrap = document.createElement('div');
+                barWrap.className = 'flex-1 h-2 rounded-full bg-slate-200 overflow-hidden';
+                const bar = document.createElement('div');
+                bar.className = 'h-full bg-violet-500 transition-all';
+                bar.style.width = `${Math.round(p.w * 100)}%`;
+                barWrap.appendChild(bar);
+                const right = document.createElement('div');
+                right.className = 'w-12 text-right text-xs text-slate-500';
+                right.textContent = `${Math.round(p.w * 100)}%`;
+                row.appendChild(left);
+                row.appendChild(barWrap);
+                row.appendChild(right);
+                row.style.animation = 'none';
+                barList.appendChild(row);
+            });
+        }
+
+        function setSentence(key) {
+            state.key = key;
+            state.tokens = sentences[key];
+            state.qIndex = null;
+            state.weights = new Array(state.tokens.length).fill(0);
+            state.layout = layoutTokens(state.tokens);
+            curToken.textContent = '（未选择）';
+            renderTokenRow();
+            renderBars();
+            draw();
+        }
+
+        function setQuery(i) {
+            state.qIndex = i;
+            state.weights = makeWeights(state.tokens, i);
+            curToken.textContent = state.tokens[i];
+            renderTokenRow();
+            renderBars();
+            draw();
+        }
+
+        function hitToken(x, y) {
+            const rect = canvas.getBoundingClientRect();
+            const px = x - rect.left;
+            const py = y - rect.top;
+            for (let i = 0; i < state.layout.length; i++) {
+                const p = state.layout[i];
+                const dx = px - p.x;
+                const dy = py - p.y;
+                if (dx*dx + dy*dy <= (p.r + 6) * (p.r + 6)) return i;
+            }
+            return null;
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const idx = hitToken(e.clientX, e.clientY);
+            if (idx === null) {
+                state.qIndex = null;
+                state.weights = new Array(state.tokens.length).fill(0);
+                curToken.textContent = '（未选择）';
+                renderTokenRow();
+                renderBars();
+                draw();
+                return;
+            }
+            setQuery(idx);
+        });
+
+        selSent.addEventListener('change', (e) => setSentence(e.target.value));
+        window.addEventListener('resize', resizeCanvas);
+
+        setSentence(selSent.value);
+        resizeCanvas();
+    </script>
+</body>
+</html>
