@@ -129,11 +129,12 @@
                 <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
                     <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="layers" class="w-5 h-5 text-violet-500"></i>
-                        互动：模拟 BPE “合并积木”
+                        互动：模拟 BPE “合并积木”与回退机制
                     </h2>
                     <p class="text-slate-600 mt-4 leading-relaxed">
-                        真实模型常用的做法之一是：先从很小的碎片开始（像字母/字），再不断把常一起出现的相邻碎片合并，
-                        让词表更高效。这就是 BPE 思路的一种直观版本。
+                        “Token 字典”并不是凭空存在的，它就是由 BPE 算法在训练阶段不断合并高频词对生成的。
+                        <br>
+                        当模型遇到一个新词时，会尝试用字典里的“长积木”去拼。如果字典里没有这个词（生僻词），它就会自动退化，拆解成字典里有的“短积木”，甚至回退到字符。
                     </p>
 
                     <div class="mt-5 space-y-3">
@@ -150,7 +151,7 @@
                         </div>
 
                         <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <div class="text-xs text-slate-400 mb-2">输入（按字起步）：</div>
+                            <div class="text-xs text-slate-400 mb-2">假设字典里只有字符，我们正在训练...</div>
                             <div id="bpe-seed" class="mono text-slate-700 break-words"></div>
                         </div>
 
@@ -160,9 +161,9 @@
                         </div>
 
                         <div class="rounded-xl border border-slate-200 bg-white p-4">
-                            <div class="text-xs text-slate-400 mb-2">这一步合并了：</div>
+                            <div class="text-xs text-slate-400 mb-2">这一步合并了（字典里增加了新词）：</div>
                             <div id="bpe-merge" class="text-sm text-slate-700">
-                                点击“合并一步”开始。
+                                点击“合并一步”模拟训练过程。
                             </div>
                         </div>
                     </div>
@@ -184,10 +185,10 @@
                     <div class="rounded-2xl border border-slate-200 bg-slate-50 p-6">
                         <div class="flex items-center gap-2 text-slate-800 font-semibold">
                             <i data-lucide="help-circle" class="w-5 h-5 text-slate-500"></i>
-                            切得越细越好？
+                            生僻词怎么办？
                         </div>
                         <p class="mt-2 text-slate-600 leading-relaxed">
-                            也不一定。切得太细会让序列变长，算力更贵；切得太粗会让词表膨胀。实际方案是在效率和表达能力之间做权衡。
+                            不会变成 &lt;UNK&gt;（未知词）。因为 BPE 的起点是字符，如果字典里没有“整词”，它会自动退化，把生僻词拆解成词根甚至字母，就像遇到不认识的英文单词你会拼读字母一样。
                         </p>
                     </div>
                 </div>
@@ -285,7 +286,7 @@
             bpeState.steps = 0;
             bpeSteps.textContent = '0';
             bpeSeed.textContent = t.length ? t : '（请在左侧输入框输入内容）';
-            bpeMerge.textContent = '点击“合并一步”开始。';
+            bpeMerge.textContent = '点击“合并一步”模拟训练过程。';
             renderBpeTokens();
         }
 
