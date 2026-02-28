@@ -99,14 +99,74 @@
                 </div>
             </section>
 
+            <section class="mt-8 bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="book-open" class="w-6 h-6 text-blue-500"></i>
+                            1. 训练阶段：字典怎么来的？
+                        </h2>
+                        <div class="mt-6 space-y-4 text-slate-600 leading-relaxed">
+                            <p>在模型诞生前，我们面对的是海量原始文本。此时还没有“Token 字典”。</p>
+                            <ul class="space-y-3">
+                                <li class="flex gap-3">
+                                    <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-xs font-bold">1</span>
+                                    <span><strong>起步：</strong>先把所有字拆成最碎的字符/字节（a, b, c...）。</span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-xs font-bold">2</span>
+                                    <span><strong>统计：</strong>寻找文本中出现频率最高、常靠在一起的相邻对（如 "t" 和 "h"）。</span>
+                                </li>
+                                <li class="flex gap-3">
+                                    <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0 text-xs font-bold">3</span>
+                                    <span><strong>合并：</strong>把它们合成新 Token（"th"）并存入字典。不断循环，直到字典达到目标大小。</span>
+                                </li>
+                            </ul>
+                            <p class="text-sm bg-blue-50 p-4 rounded-xl border border-blue-100 text-blue-800 italic">
+                                结论：Token 字典不是预设的，而是 BPE 算法从海量数据中“学习”并造出来的产物。
+                            </p>
+                        </div>
+                    </div>
+
+                    <div>
+                        <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="zap" class="w-6 h-6 text-amber-500"></i>
+                            2. 推理阶段：怎么用字典切词？
+                        </h2>
+                        <div class="mt-6 space-y-4 text-slate-600 leading-relaxed">
+                            <p>当你输入一句话给模型时，分词器会按照 BPE 记录的“合并优先级”去查字典：</p>
+                            <ul class="space-y-4">
+                                <li class="border-l-4 border-slate-200 pl-4">
+                                    <strong class="text-slate-800">优先匹配长词：</strong>
+                                    如果输入 "highest"，字典里正好有这个 Token，就直接切成 1 个积木。
+                                </li>
+                                <li class="border-l-4 border-slate-200 pl-4">
+                                    <strong class="text-slate-800">自动回退拆解：</strong>
+                                    如果输入生僻词 "highlighter" 而字典里没有，它会尝试拆解成已有的词根：<br>
+                                    <span class="mono text-xs bg-slate-100 px-2 py-1 rounded mt-2 inline-block">high + light + er</span>
+                                </li>
+                            </ul>
+                            <p class="text-sm bg-amber-50 p-4 rounded-xl border border-amber-100 text-amber-800">
+                                这就是为什么模型不会报“未知词”错误，因为它总能一路退化到单字符来拼凑出你的输入。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
                     <div class="flex items-center justify-between gap-3">
                         <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                             <i data-lucide="wand-2" class="w-5 h-5 text-indigo-500"></i>
-                            互动：把输入切成 Token
+                            推理演示：用字典切新句子
                         </h2>
                     </div>
+                    <p class="text-slate-600 mt-4 leading-relaxed">
+                        这是“推理阶段”的模拟。输入一句话，看看它如何被拆解。
+                        <br>
+                        <span class="text-xs text-slate-400">（注：此处使用标准分词器模拟“查字典”结果）</span>
+                    </p>
 
                     <div class="mt-5">
                         <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50">
@@ -129,12 +189,10 @@
                 <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
                     <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                         <i data-lucide="layers" class="w-5 h-5 text-violet-500"></i>
-                        互动：模拟 BPE “合并积木”与回退机制
+                        训练演示：模拟 BPE 造字典
                     </h2>
                     <p class="text-slate-600 mt-4 leading-relaxed">
-                        “Token 字典”并不是凭空存在的，它就是由 BPE 算法在训练阶段不断合并高频词对生成的。
-                        <br>
-                        当模型遇到一个新词时，会尝试用字典里的“长积木”去拼。如果字典里没有这个词（生僻词），它就会自动退化，拆解成字典里有的“短积木”，甚至回退到字符。
+                        这是“训练阶段”的模拟。假设一开始字典里只有单个字符，我们从输入中统计频率，不断把最常见的组合加入字典。
                     </p>
 
                     <div class="mt-5 space-y-3">
