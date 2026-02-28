@@ -184,6 +184,11 @@
                         <div id="token-list" class="flex flex-wrap gap-2 min-h-[44px] items-start"></div>
                         <div id="empty-tip" class="mt-2 text-sm text-slate-400">输入内容后会在这里出现“积木”。</div>
                     </div>
+
+                    <div id="token-ids-area" class="mt-5 pt-4 border-t border-slate-100 hidden">
+                        <div class="text-xs text-slate-400 mb-2">模型眼里的输入（Token IDs）：</div>
+                        <div id="token-ids" class="mono text-sm text-slate-600 bg-slate-50 p-3 rounded-lg break-all tracking-wider"></div>
+                    </div>
                 </div>
 
                 <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
@@ -271,6 +276,8 @@
         const tokenList = document.getElementById('token-list');
         const emptyTip = document.getElementById('empty-tip');
         const tokenCount = document.getElementById('token-count');
+        const tokenIdsArea = document.getElementById('token-ids-area');
+        const tokenIdsDiv = document.getElementById('token-ids');
 
         const pillColors = [
             'bg-blue-100 text-blue-700',
@@ -295,21 +302,38 @@
             return segmentWords(text);
         }
 
+        function getPseudoId(text) {
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) {
+                hash = (hash << 5) - hash + text.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash) % 50000;
+        }
+
         function renderTokens(tokens) {
             tokenList.innerHTML = '';
             tokenCount.textContent = String(tokens.length);
+            
             if (tokens.length === 0) {
                 emptyTip.classList.remove('hidden');
+                tokenIdsArea.classList.add('hidden');
                 return;
             }
+            
             emptyTip.classList.add('hidden');
+            tokenIdsArea.classList.remove('hidden');
+            
+            const ids = [];
             tokens.forEach((t, i) => {
                 const span = document.createElement('span');
                 span.className = `token-pill px-3 py-1 rounded-md text-sm font-medium ${pillColors[i % pillColors.length]}`;
                 span.style.animationDelay = `${Math.min(i, 18) * 0.03}s`;
                 span.textContent = t;
                 tokenList.appendChild(span);
+                ids.push(getPseudoId(t));
             });
+            tokenIdsDiv.innerText = '[' + ids.join(', ') + ']';
         }
 
         function segmentChars(text) {
