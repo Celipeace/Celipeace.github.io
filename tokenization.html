@@ -87,21 +87,18 @@
                         <h2 class="text-2xl font-bold text-slate-800">Tokenization 是什么？</h2>
                         <div class="mt-4 space-y-3 text-slate-600 leading-relaxed">
                             <p>
-                                你可以把一句话想成一整根“面条”。模型一口吞不下，就需要先切成一段段小面条。
-                                每一段就是一个 Token：可能是一个字、一个词、一个标点，甚至是一个词的一部分。
-                            </p>
-                            <p>
-                                关键点不是“切得多漂亮”，而是“切完之后能稳定对应到数字编号”，让模型可以用矩阵运算处理。
-                                这一步只是在做<strong class="text-slate-800">拆分 + 编号</strong>，不是理解含义。
+                                计算机是不懂人类的“字”或“词”的，它们只认识数字。所以，大模型处理语言的第一步，就是把句子切成它能消化的“数字”——也就是 Token，这一过程叫做Tokenization。
                             </p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section class="mt-8 bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
-                    <div>
+            <div class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- 左侧：训练阶段 -->
+                <div class="space-y-6">
+                    <!-- 训练阶段：说明 -->
+                    <section class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg h-full">
                         <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                             <i data-lucide="book-open" class="w-6 h-6 text-blue-500"></i>
                             1. 训练阶段：字典怎么来的？
@@ -126,9 +123,61 @@
                                 结论：Token 字典不是预设的，而是 BPE 算法从海量数据中“学习”并造出来的产物。
                             </p>
                         </div>
-                    </div>
+                    </section>
 
-                    <div>
+                    <!-- 训练演示 -->
+                    <section class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="layers" class="w-5 h-5 text-violet-500"></i>
+                            训练演示：模拟 BPE 造字典
+                        </h2>
+                        <p class="text-slate-600 mt-4 leading-relaxed">
+                            这是“训练阶段”的模拟。假设一开始字典里只有单个字符，我们从输入中统计频率，不断把最常见的组合加入字典。
+                        </p>
+
+                        <div class="mt-5 space-y-3">
+                            <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 mb-4">
+                                <i data-lucide="pen-tool" class="w-5 h-5 text-slate-400"></i>
+                                <input id="train-input" type="text" class="w-full bg-transparent outline-none text-slate-800 placeholder-slate-400"
+                                    placeholder="输入用于训练的语料，如：aaaaabbbaaa">
+                            </div>
+
+                            <div class="flex items-center gap-3">
+                                <button id="bpe-reset" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700">
+                                    重置
+                                </button>
+                                <button id="bpe-step" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">
+                                    合并一步
+                                </button>
+                                <div class="text-sm text-slate-500">
+                                    已合并：<span id="bpe-steps" class="font-semibold text-slate-700">0</span> 次
+                                </div>
+                            </div>
+
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                                <div class="text-xs text-slate-400 mb-2">假设字典里只有字符，我们正在训练...</div>
+                                <div id="bpe-seed" class="mono text-slate-700 break-words"></div>
+                            </div>
+
+                            <div>
+                                <div class="text-xs text-slate-400 mb-2">当前碎片：</div>
+                                <div id="bpe-tokens" class="flex flex-wrap gap-2 min-h-[44px] items-start"></div>
+                            </div>
+
+                            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                                <div class="text-xs text-slate-400 mb-2">这一步合并了（字典里增加了新词）：</div>
+                                <div id="bpe-merge" class="text-sm text-slate-700">
+                                    点击“合并一步”模拟训练过程。
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+
+                <!-- 右侧：推理阶段 -->
+                <div class="space-y-6">
+                    <!-- 推理阶段：说明 -->
+                    <section class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg h-full">
                         <h2 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
                             <i data-lucide="zap" class="w-6 h-6 text-amber-500"></i>
                             2. 推理阶段：怎么用字典切词？
@@ -150,88 +199,46 @@
                                 这就是为什么模型不会报“未知词”错误，因为它总能一路退化到单字符来拼凑出你的输入。
                             </p>
                         </div>
-                    </div>
-                </div>
-            </section>
+                    </section>
 
-            <section class="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
-                    <div class="flex items-center justify-between gap-3">
-                        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="wand-2" class="w-5 h-5 text-indigo-500"></i>
-                            推理演示：用字典切新句子
-                        </h2>
-                    </div>
-                    <p class="text-slate-600 mt-4 leading-relaxed">
-                        这是“推理阶段”的模拟。输入一句话，看看它如何被拆解。
-                        <br>
-                        <span class="text-xs text-slate-400">（注：此处使用标准分词器模拟“查字典”结果）</span>
-                    </p>
-
-                    <div class="mt-5">
-                        <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50">
-                            <i data-lucide="message-square" class="w-5 h-5 text-slate-400"></i>
-                            <input id="input-text" type="text" class="w-full bg-transparent outline-none text-slate-800 placeholder-slate-400"
-                                placeholder="输入一句中文或英文试试看，比如：苹果发布了新手机！">
+                    <!-- 推理演示 -->
+                    <section class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
+                        <div class="flex items-center justify-between gap-3">
+                            <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="wand-2" class="w-5 h-5 text-indigo-500"></i>
+                                推理演示：用字典切新句子
+                            </h2>
                         </div>
-                        <div class="mt-4 flex items-center justify-end text-sm text-slate-500">
-                            <span>Token 数：<span id="token-count" class="font-semibold text-slate-700">0</span></span>
-                        </div>
-                    </div>
-
-                    <div class="mt-5">
-                        <div class="text-xs text-slate-400 mb-2">切开后的 Token：</div>
-                        <div id="token-list" class="flex flex-wrap gap-2 min-h-[44px] items-start"></div>
-                        <div id="empty-tip" class="mt-2 text-sm text-slate-400">输入内容后会在这里出现“积木”。</div>
-                    </div>
-
-                    <div id="token-ids-area" class="mt-5 pt-4 border-t border-slate-100 hidden">
-                        <div class="text-xs text-slate-400 mb-2">模型眼里的输入（Token IDs）：</div>
-                        <div id="token-ids" class="mono text-sm text-slate-600 bg-slate-50 p-3 rounded-lg break-all tracking-wider"></div>
-                    </div>
-                </div>
-
-                <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
-                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        <i data-lucide="layers" class="w-5 h-5 text-violet-500"></i>
-                        训练演示：模拟 BPE 造字典
-                    </h2>
-                    <p class="text-slate-600 mt-4 leading-relaxed">
-                        这是“训练阶段”的模拟。假设一开始字典里只有单个字符，我们从输入中统计频率，不断把最常见的组合加入字典。
-                    </p>
-
-                    <div class="mt-5 space-y-3">
-                        <div class="flex items-center gap-3">
-                            <button id="bpe-reset" class="px-4 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-sm font-medium text-slate-700">
-                                重置
-                            </button>
-                            <button id="bpe-step" class="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium">
-                                合并一步
-                            </button>
-                            <div class="text-sm text-slate-500">
-                                已合并：<span id="bpe-steps" class="font-semibold text-slate-700">0</span> 次
+                        <p class="text-slate-600 mt-4 leading-relaxed">
+                            这是“推理阶段”的模拟。输入一句话，看看它如何被拆解。
+                            <br>
+                            <span class="text-xs text-slate-400">（注：此处使用标准分词器模拟“查字典”结果）</span>
+                        </p>
+    
+                        <div class="mt-5">
+                            <div class="flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 bg-slate-50">
+                                <i data-lucide="message-square" class="w-5 h-5 text-slate-400"></i>
+                                <input id="inference-input" type="text" class="w-full bg-transparent outline-none text-slate-800 placeholder-slate-400"
+                                    placeholder="输入一句中文或英文试试看，比如：苹果发布了新手机！">
+                            </div>
+                            <div class="mt-4 flex items-center justify-end text-sm text-slate-500">
+                                <span>Token 数：<span id="token-count" class="font-semibold text-slate-700">0</span></span>
                             </div>
                         </div>
-
-                        <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            <div class="text-xs text-slate-400 mb-2">假设字典里只有字符，我们正在训练...</div>
-                            <div id="bpe-seed" class="mono text-slate-700 break-words"></div>
+    
+                        <div class="mt-5">
+                            <div class="text-xs text-slate-400 mb-2">切开后的 Token：</div>
+                            <div id="token-list" class="flex flex-wrap gap-2 min-h-[44px] items-start"></div>
+                            <div id="empty-tip" class="mt-2 text-sm text-slate-400">输入内容后会在这里出现“积木”。</div>
                         </div>
-
-                        <div>
-                            <div class="text-xs text-slate-400 mb-2">当前碎片：</div>
-                            <div id="bpe-tokens" class="flex flex-wrap gap-2 min-h-[44px] items-start"></div>
+    
+                        <div id="token-ids-area" class="mt-5 pt-4 border-t border-slate-100 hidden">
+                            <div class="text-xs text-slate-400 mb-2">模型眼里的输入（Token IDs）：</div>
+                            <div id="token-ids" class="mono text-sm text-slate-600 bg-slate-50 p-3 rounded-lg break-all tracking-wider"></div>
                         </div>
-
-                        <div class="rounded-xl border border-slate-200 bg-white p-4">
-                            <div class="text-xs text-slate-400 mb-2">这一步合并了（字典里增加了新词）：</div>
-                            <div id="bpe-merge" class="text-sm text-slate-700">
-                                点击“合并一步”模拟训练过程。
-                            </div>
-                        </div>
-                    </div>
+                    </section>
                 </div>
-            </section>
+            </div>
 
             <section class="mt-8 bg-white border border-slate-200 rounded-2xl p-8 shadow-lg">
                 <h2 class="text-2xl font-bold text-slate-800">常见误解</h2>
@@ -272,7 +279,8 @@
     <script>
         lucide.createIcons();
 
-        const inputText = document.getElementById('input-text');
+        const inferenceInput = document.getElementById('inference-input');
+        const trainInput = document.getElementById('train-input');
         const tokenList = document.getElementById('token-list');
         const emptyTip = document.getElementById('empty-tip');
         const tokenCount = document.getElementById('token-count');
@@ -347,8 +355,11 @@
             return out;
         }
 
-        inputText.addEventListener('input', (e) => {
+        inferenceInput.addEventListener('input', (e) => {
             renderTokens(tokenize(e.target.value));
+        });
+
+        trainInput.addEventListener('input', (e) => {
             seedBpe(e.target.value);
         });
 
@@ -441,7 +452,7 @@
             renderBpeTokens();
         }
 
-        bpeReset.addEventListener('click', () => seedBpe(inputText.value));
+        bpeReset.addEventListener('click', () => seedBpe(trainInput.value));
         bpeStep.addEventListener('click', doBpeStep);
 
         seedBpe('');
